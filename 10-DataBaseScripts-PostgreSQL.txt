@@ -1,0 +1,138 @@
+-- SCHEMA: stage
+
+-- DROP SCHEMA stage ;
+
+CREATE SCHEMA stage
+    AUTHORIZATION postgres;
+	
+	
+	
+-- SCHEMA: worldremit
+
+-- DROP SCHEMA worldremit ;
+
+CREATE SCHEMA worldremit
+    AUTHORIZATION postgres;
+	
+	
+	
+-- Table: stage.country
+
+-- DROP TABLE stage.country;
+
+CREATE TABLE stage.country
+(
+    country_name character varying(50) COLLATE pg_catalog."default",
+    processed_yn character varying(3) COLLATE pg_catalog."default" NOT NULL,
+    created_date timestamp without time zone NOT NULL
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE stage.country
+    OWNER to postgres;
+	
+	
+	
+-- Table: stage.remittance
+
+-- DROP TABLE stage.remittance;
+
+CREATE TABLE stage.remittance
+(
+    from_country character varying(50) COLLATE pg_catalog."default",
+    to_country character varying(50) COLLATE pg_catalog."default",
+    remittance_value integer,
+	effective_year smallint,
+    processed_yn character varying(3) COLLATE pg_catalog."default" NOT NULL,
+    created_date time without time zone NOT NULL
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE stage.remittance
+    OWNER to postgres;
+	
+	
+	
+-- Table: stage.migration
+
+-- DROP TABLE stage.migration;
+
+CREATE TABLE stage.migration
+(
+    from_country character varying(50) COLLATE pg_catalog."default",
+    to_country character varying(50) COLLATE pg_catalog."default",
+	migration_value integer,
+    effective_year smallint,	
+    processed_yn character varying(3) COLLATE pg_catalog."default" NOT NULL,
+    created_date time without time zone NOT NULL
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE stage.migration
+    OWNER to postgres;
+	
+
+	
+-- Table: worldremit.country
+
+-- DROP TABLE worldremit.country;
+
+CREATE TABLE worldremit.country
+(
+    country_key smallserial,
+    country_name character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    created_date time without time zone NOT NULL,
+    CONSTRAINT country_pkey PRIMARY KEY (country_key)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE worldremit.country
+    OWNER to postgres;
+	
+	
+
+-- Table: worldremit.corridor
+
+-- DROP TABLE worldremit.corridor;
+
+CREATE TABLE worldremit.corridor
+(
+    corridor_key serial,
+    country_from smallint NOT NULL,
+    country_to smallint NOT NULL,
+    remittance_value integer,
+    migration_value integer,
+    effective_year smallint NOT NULL,
+    create_date timestamp without time zone NOT NULL,
+    CONSTRAINT corridor_pkey PRIMARY KEY (corridor_key),
+    CONSTRAINT corridor_from_country_fk FOREIGN KEY (country_from)
+        REFERENCES worldremit.country (country_key) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT corridor_to_country_fk FOREIGN KEY (country_to)
+        REFERENCES worldremit.country (country_key) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE worldremit.corridor
+    OWNER to postgres;
+	
+
+	

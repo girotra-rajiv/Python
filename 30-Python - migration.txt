@@ -1,0 +1,90 @@
+#!/usr/bin/python
+
+import psycopg2
+import datetime
+
+migration_list = []
+migration_value_list = []
+
+to_country_list = []
+from_country_list = []
+all_country_list = []
+
+country_load = []
+country_load_list = []
+
+migration_load = []
+migration_load_list = []
+
+# Read Migration File into migration_list that becomes a list of lists
+with open('C:\\worldremit\\bilateralmigrationmatrix2013.csv') as migration_file:
+   for line in migration_file.readlines():
+       migration_list.append(line.strip().split('|'))
+
+# Remove first row (i.e. first list) from the migration_list
+migration_list = migration_list[1:]
+
+# Remove last four rows (i.e. last four lists) from the migration list
+migration_list = migration_list[:-4]
+
+# Remove last two columns of each row in the migration list as the last column is emty column and the next one is world data  
+migration_list = list(map(lambda x: x[:-2], migration_list))
+
+# First row now has all the destination country names. This is a list of destination country names.
+to_country_list = migration_list[0]
+
+# First column in the destination country names is to be removed.
+to_country_list = to_country_list[1:]
+
+# First column of each row is the from_country
+from_country_list = list(map(lambda x: x[0], migration_list))
+
+# Fist element is not a country so remove
+from_country_list = from_country_list[1:]
+
+############ LOAD Country  ############## 
+all_country_list = list(sorted(set(to_country_list + from_country_list)))
+
+country_load_raw = [country + '|No|' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f') for country in all_country_list]
+
+for country in country_load_raw:
+   country_load_list.append(country.split('|'))
+
+conn = psycopg2.connect(database="postgres", user="postgres", password="postgres")
+cur = conn.cursor()
+
+for country_load in country_load_list:    
+   params = ['%s' for country in country_load]
+   sql    = 'INSERT INTO stage.country(country_name, processed_yn, created_date) VALUES (%s);' % ','.join(params)
+   #print(sql)
+   #print(country_load)
+   cur.execute(sql, country_load)
+
+cur.close()
+
+ 
+cur = conn.cursor()
+
+#remove first column
+migration_value_list = list(map(lambda x: x[1:], migration_list))
+
+#remove first row
+migration_value_list = migration_value_list [1:]
+
+for from_country_idx, from_country in enumerate(from_country_list):
+   for to_country_idx, to_country in enumerate(to_country_list):
+      migration_value = migration_value_list[from_country_idx][to_country_idx]
+      migration_value = migration_value.replace(',', '')
+      #print([from_country + '|' + to_country + '|' + migration_value + '|2013' + '|No|' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')])
+      str1 = (from_country + '|' + to_country + '|' + migration_value + '|2013' + '|No|' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+      migration_load_list.append(str1.split('|'))
+
+for migration_load in migration_load_list:
+    params = ['%s' for migration in migration_load]    
+    sql = 'INSERT INTO stage.migration(from_country, to_country, migration_value, effective_year, processed_yn, created_date) VALUES (%s);' % ','.join(params)
+    cur.execute(sql, migration_load)
+
+cur.close()
+
+conn.commit();
+conn.close()

@@ -1,0 +1,92 @@
+#!/usr/bin/python
+
+import psycopg2
+import datetime
+
+remittance_list = []
+remittance_value_list = []
+
+to_country_list = []
+from_country_list = []
+all_country_list = []
+
+country_load = []
+country_load_list = []
+
+remittance_load = []
+remittance_load_list = []
+
+# Read remittance File into remittance_list that becomes a list of lists
+with open('C:\\worldremit\\bilateralremittancematrix2016.csv') as remittance_file:
+   for line in remittance_file.readlines():
+       remittance_list.append(line.strip().split('|'))
+
+# Remove first row (i.e. first list) from the remittance_list
+remittance_list = remittance_list[1:]
+
+# Remove last eight rows (i.e. last eight lists) from the remittance list
+remittance_list = remittance_list[:-8]
+
+# Remove last two columns of each row in the remittance list as the last column is emty column and the next one is world data  
+remittance_list = list(map(lambda x: x[:-2], remittance_list))
+
+# First row now has all the destination country names. This is a list of destination country names.
+to_country_list = remittance_list[0]
+
+# First column in the destination country names is to be removed.
+to_country_list = to_country_list[1:]
+
+# First column of each row is the from_country
+from_country_list = list(map(lambda x: x[0], remittance_list))
+
+# Fist element is not a country so remove
+from_country_list = from_country_list[1:]
+
+############ LOAD Country  ############## 
+all_country_list = list(sorted(set(to_country_list + from_country_list)))
+
+country_load_raw = [country + '|No|' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f') for country in all_country_list]
+
+for country in country_load_raw:
+   country_load_list.append(country.split('|'))
+
+conn = psycopg2.connect(database="postgres", user="postgres", password="postgres")
+cur = conn.cursor()
+
+for country_load in country_load_list:    
+   params = ['%s' for country in country_load]
+   sql    = 'INSERT INTO stage.country(country_name, processed_yn, created_date) VALUES (%s);' % ','.join(params)
+   #print(sql)
+   #print(country_load)
+   cur.execute(sql, country_load)
+
+cur.close()
+
+ 
+cur = conn.cursor()
+
+#remove first column
+remittance_value_list = list(map(lambda x: x[1:], remittance_list))
+
+#remove first row
+remittance_value_list = remittance_value_list [1:]
+
+for from_country_idx, from_country in enumerate(from_country_list):
+   for to_country_idx, to_country in enumerate(to_country_list):
+      remittance_value = remittance_value_list[from_country_idx][to_country_idx]
+      remittance_value = remittance_value.replace(',', '')
+      remittance_value = remittance_value.replace('*', '')
+      remittance_value = remittance_value.replace('N/A', '0')
+      #print([from_country + '|' + to_country + '|' + remittance_value + '|2016' + '|No|' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')])
+      str1 = (from_country + '|' + to_country + '|' + remittance_value + '|2016' + '|No|' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+      remittance_load_list.append(str1.split('|'))
+
+for remittance_load in remittance_load_list:
+    params = ['%s' for remittance in remittance_load]    
+    sql = 'INSERT INTO stage.remittance(from_country, to_country, remittance_value, effective_year, processed_yn, created_date) VALUES (%s);' % ','.join(params)
+    cur.execute(sql, remittance_load)
+
+cur.close()
+
+conn.commit();
+conn.close()
